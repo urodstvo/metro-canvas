@@ -1,5 +1,5 @@
 export class UI {
-  static createElement(tagName, properties) {
+  static createElement(tagName, properties = {}) {
     const element = document.createElement(tagName);
     const { class: className, id, style, text } = properties;
     element.className = className ? className.join(" ") : "";

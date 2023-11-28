@@ -1,59 +1,11 @@
-const nodesProxyHandler = {
-  get(target, property) {
-    if (property === "push") {
-      if (edges) edges.forEach((el) => el.push(0));
-      edges.push(new Array(nodes.length + 1).fill(0));
-      drawEdgesTable();
-      return function (...args) {
-        args.forEach((item) => target.push(item));
-      };
-    }
-
-    return target[property];
-  },
-};
-
-const edgesProxyHandler = {};
-
-const pathProxyHandler = {
-  get(target, property, receiver) {
-    const value = Reflect.get(target, property, receiver);
-    if (property === "add") {
-      return function (element) {
-        const res = value.call(target, element);
-        drawMap();
-        return res;
-      };
-    } else if (property === "delete") {
-      return function (element) {
-        const res = value.call(target, element);
-        drawMap();
-        return res;
-      };
-    } else if (property === "has") {
-      return function (element) {
-        return value.call(target, element);
-      };
-    } else if (property === "clear") {
-      return function () {
-        value.call(target);
-      };
-    } else if (property === "indexOf") {
-      return function (element) {
-        return value.call(target, element);
-      };
-    }
-    return value;
-  },
-};
-
 export class Graph {
-  __path__color = "rgba(255, 0, 0, 1)";
+  __path__color = "red";
   __node_radius = 12;
   __path = new Set();
   __canvas = null;
   __canvas_width = 0;
   __canvas_height = 0;
+  auto_draw = true;
 
   constructor(nodes = [], edges = []) {
     this.__nodes = nodes;
@@ -66,9 +18,16 @@ export class Graph {
 
   set config(cfg) {
     const parsed_cfg = JSON.parse(cfg);
-    for (const key in parsed_cfg) {
-      this[key] = cfg[key];
-    }
+    Object.assign(this, parsed_cfg);
+    this.__path = new Set();
+  }
+
+  get nodes() {
+    return this.__nodes;
+  }
+
+  get edges() {
+    return this.__edges;
   }
 
   initCanvas(canvas) {
@@ -102,8 +61,6 @@ export class Graph {
   }
 
   #drawEdgesFor(node) {
-    const from = node;
-
     this.__edges[node.id].map((distance, ind) => {
       if (!!distance) {
         if (this.__path.has(node.id) && this.__path.has(ind)) {
@@ -117,17 +74,14 @@ export class Graph {
         }
 
         const Edge = new Path2D();
-        E.moveTo(from.x, from.y);
-        E.lineTo(this.__nodes[ind].x, thos.__nodes[ind].y);
+        Edge.moveTo(node.x, node.y);
+        Edge.lineTo(this.__nodes[ind].x, this.__nodes[ind].y);
 
         this.__canvas.stroke(Edge);
-        this.__canvas.strokeStyle = "#000";
       }
-    });
-  }
 
-  #clearCanvas() {
-    this.__canvas.clearRect(0, 0, this.__canvas_width, this.__canvas_height);
+      this.__canvas.strokeStyle = "#000";
+    });
   }
 
   setDistance(from, to, distance) {
@@ -142,25 +96,35 @@ export class Graph {
     this.__nodes.push(node);
 
     if (this.__edges) this.__edges.forEach((edge) => edge.push(0));
-    this.__edges.push(new Array(this.__nodes.length + 1).fill(0));
+    this.__edges.push(new Array(this.__nodes.length).fill(0));
+
+    if (this.auto_draw && this.__canvas) this.draw();
   }
 
   deleteNode(id) {
     this.__nodes = this.__nodes.filter((node) => node.id !== id);
+    this.__nodes.forEach((node) => {
+      if (node.id > id) node.id--;
+    });
 
     this.__edges = this.__edges.filter((_, ind) => ind !== id);
     this.__edges = this.__edges.map((edge) =>
       edge.filter((_, ind) => ind !== id)
     );
+
+    if (this.__path.has(id)) this.__path.clear();
+
+    if (this.auto_draw && this.__canvas) this.draw();
   }
 
   draw() {
-    this.#clearCanvas();
+    this.__canvas.clearRect(0, 0, this.__canvas_width, this.__canvas_height);
 
     const elems = [];
-    elems
-      .push(this.__nodes.filter((node) => !this.__path.has(node.id)))
-      .push(this.__nodes.filter((node) => pthis.__path.has(node.id)));
+    elems.push(
+      this.__nodes.filter((node) => !this.__path.has(node.id)),
+      this.__nodes.filter((node) => this.__path.has(node.id))
+    );
 
     elems.forEach((nodes) => {
       nodes.forEach((node) => {
