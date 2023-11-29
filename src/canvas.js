@@ -37,7 +37,7 @@ export class Graph {
   }
 
   #drawNode(node) {
-    const { id, x, y, label } = node;
+    const { id, x, y, label, label_direction } = node;
     if (this.__path.has(id)) this.__canvas.fillStyle = this.__path__color;
     const radius = this.__node_radius;
 
@@ -51,11 +51,38 @@ export class Graph {
     this.__canvas.stroke(Node);
     this.__canvas.fill(NodeFill);
 
-    this.__canvas.fillText(
-      label,
-      x - label.toString().length * 3,
-      y + radius * -2
-    );
+    switch (label_direction) {
+      case "up": {
+        const translateX = x - label.toString().length * 3;
+        const translateY = y - radius * 2;
+        this.__canvas.translate(translateX, translateY);
+        this.__canvas.rotate(-Math.PI / 2);
+        this.__canvas.fillText(label, 0, radius * 2);
+        this.__canvas.rotate(Math.PI / 2);
+        this.__canvas.translate(-translateX, -translateY);
+        break;
+      }
+      case "right": {
+        this.__canvas.fillText(label, x + 2 * radius, y + 2);
+        break;
+      }
+      case "down": {
+        this.__canvas.fillText(
+          label,
+          x - label.toString().length * 3,
+          y + 2 * radius
+        );
+        break;
+      }
+      case "left": {
+        this.__canvas.fillText(
+          label,
+          x - label.toString().length * 4 - 2 * radius,
+          y + 2
+        );
+        break;
+      }
+    }
 
     this.__canvas.fillStyle = "#000";
   }
@@ -63,14 +90,50 @@ export class Graph {
   #drawEdgesFor(node) {
     this.__edges[node.id].map((distance, ind) => {
       if (!!distance) {
+        const x_diff = this.__nodes[ind].x - node.x;
+        const y_diff = this.__nodes[ind].y - node.y;
+        if (x_diff === 0 && y_diff === 0) return;
+
         if (this.__path.has(node.id) && this.__path.has(ind)) {
           const arr_path = Array.from(this.__path);
 
           const ind_path = arr_path.indexOf(ind);
           const node_path = arr_path.indexOf(node.id);
 
-          if (ind_path === node_path + 1 || ind_path === node_path - 1)
+          if (ind_path === node_path + 1 || ind_path === node_path - 1) {
             this.__canvas.strokeStyle = this.__path__color;
+            this.__canvas.fillStyle = this.__path__color;
+          }
+        }
+
+        if (this.__edges[ind][node.id] < this.__edges[node.id][ind]) {
+          this.__canvas.translate(node.x, node.y);
+
+          let angle;
+          if (x_diff === 0) angle = y_diff / Math.abs(y_diff) > 0 ? 0 : Math.PI;
+          else if (y_diff === 0)
+            angle = x_diff / Math.abs(x_diff) > 0 ? 0 : Math.PI;
+          else {
+            angle = Math.abs(Math.atan(y_diff / x_diff));
+            if (x_diff > 0 && y_diff < 0) angle = -angle;
+            if (x_diff < 0 && y_diff > 0) angle = Math.PI - angle;
+            if (x_diff < 0 && y_diff < 0) angle = -Math.PI + angle;
+          }
+
+          this.__canvas.rotate(angle);
+
+          const center = Math.sqrt(x_diff ** 2 + y_diff ** 2) / 2;
+          const coef = Math.abs(angle) > Math.PI ? -1 : 1;
+
+          const Arrow = new Path2D();
+          Arrow.moveTo(center, 0);
+          Arrow.lineTo(center - 8 * coef, 4);
+          Arrow.lineTo(center - 8 * coef, -4);
+          Arrow.lineTo(center, 0);
+
+          this.__canvas.fill(Arrow);
+          this.__canvas.rotate(-angle);
+          this.__canvas.translate(-node.x, -node.y);
         }
 
         const Edge = new Path2D();
@@ -81,6 +144,7 @@ export class Graph {
       }
 
       this.__canvas.strokeStyle = "#000";
+      this.__canvas.fillStyle = "#000";
     });
   }
 

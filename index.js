@@ -3,7 +3,9 @@ import { UI } from "./src/ui";
 import { Graph } from "./src/canvas";
 import { findShortestPath } from "./src/algorithms";
 
-const doubleDirs = true;
+let doubleDirs = localStorage.getItem("doubleDirs")
+  ? localStorage.getItem("doubleDirs") === "true"
+  : true;
 const graph = new Graph();
 
 const root = UI.getElement("#root");
@@ -44,9 +46,9 @@ const path_input = UI.createElement("div", { class: ["path-input"] });
 const path_from = UI.createElement("input", { id: "path-from" });
 const path_to = UI.createElement("input", { id: "path-to" });
 path_from.type = "number";
-path_from.placeholder = "from";
+path_from.placeholder = "from (id)";
 path_to.type = "number";
-path_to.placeholder = "to";
+path_to.placeholder = "to (id)";
 const draw_path_button = UI.createElement("button", {
   id: "draw-path",
   text: "draw path",
@@ -66,6 +68,14 @@ const modal_content = UI.createElement("div", { class: ["modal-content"] });
 const table = UI.createElement("table", { id: "edges" });
 const table_header = UI.createElement("thead");
 const table_body = UI.createElement("tbody");
+const switch_dirs = UI.createElement("input", { id: "switch" });
+switch_dirs.type = "checkbox";
+switch_dirs.checked = doubleDirs;
+switch_dirs.onchange = () => {
+  localStorage.setItem("doubleDirs", switch_dirs.checked);
+  doubleDirs = switch_dirs.checked;
+};
+
 const close_modal_button = UI.createElement("button", {
   id: "close-modal",
   text: "close",
@@ -86,7 +96,7 @@ UI.append($path, [$path_legend, path_log, path_input, draw_path_button]);
 UI.append(path_input, [path_from, path_to]);
 UI.append($canvas, [canvas]);
 UI.append(modal, [modal_content]);
-UI.append(modal_content, [table, close_modal_button]);
+UI.append(modal_content, [table, close_modal_button, switch_dirs]);
 UI.append(table, [table_header, table_body]);
 
 const nodes_list_header = UI.createElement("div", {
@@ -105,19 +115,61 @@ UI.append(nodes_list_header, [
 ]);
 
 function addNodeToUI(node) {
-  const { id, x, y, label } = node;
+  const { id, x, y, label, label_direction } = node;
+
+  let arrow;
+  switch (label_direction) {
+    case "up":
+      arrow = "↑";
+      break;
+    case "right":
+      arrow = "→";
+      break;
+    case "down":
+      arrow = "↓";
+      break;
+    case "left":
+      arrow = "←";
+      break;
+  }
 
   const node_item = UI.createElement("div", { class: ["node-item"] });
   const node_data = UI.createElement("div", { class: ["node-data"] });
   const node_id = UI.createElement("span", { text: id.toString() });
   const node_x = UI.createElement("span", { text: x.toString() });
   const node_y = UI.createElement("span", { text: y.toString() });
-  const node_label = UI.createElement("span", { text: label });
+  const node_label = UI.createElement("span", {
+    text: [arrow, label].join(" "),
+    style: "cursor: pointer;",
+  });
   const delete_button = UI.createElement("button", { text: "delete" });
   delete_button.onclick = () => {
     graph.deleteNode(id);
     buildEdgesTable();
     addAllNodesToUI(graph.nodes);
+  };
+
+  node_label.onclick = () => {
+    switch (graph.nodes[id].label_direction) {
+      case "up":
+        node.label_direction = "right";
+        node_label.textContent = ["→", label].join(" ");
+        break;
+      case "right":
+        node.label_direction = "down";
+        node_label.textContent = ["↓", label].join(" ");
+        break;
+      case "down":
+        node.label_direction = "left";
+        node_label.textContent = ["←", label].join(" ");
+        break;
+      case "left":
+        node.label_direction = "up";
+        node_label.textContent = ["↑", label].join(" ");
+        break;
+    }
+
+    graph.draw();
   };
 
   UI.append(node_item, [node_data, delete_button]);
@@ -164,10 +216,9 @@ function buildEdgesTable() {
         input.disabled = i === j - 1;
         input.onchange = (e) => {
           graph.edges[i][j - 1] = parseInt(e.target.value);
-          if (doubleDirs) {
-            graph.edges[j - 1][i] = parseInt(e.target.value);
-            buildEdgesTable();
-          }
+          if (doubleDirs) graph.edges[j - 1][i] = parseInt(e.target.value);
+          else graph.edges[j - 1][i] = 0;
+          buildEdgesTable();
           graph.draw();
         };
         UI.append(cell, [input]);
@@ -206,6 +257,7 @@ add_node_button.onclick = () => {
     label: !!node_label_input.value
       ? node_label_input.value
       : graph.nodes.length.toString(),
+    label_direction: "up",
   };
   graph.addNode(node);
   addAllNodesToUI(graph.nodes);
