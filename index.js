@@ -1,7 +1,7 @@
 import "./style.css";
 import { UI } from "./src/ui";
 import { Graph } from "./src/canvas";
-import { findShortestPath } from "./src/algorithms";
+import { Dijkstra } from "./src/algorithms";
 
 let doubleDirs = localStorage.getItem("doubleDirs")
   ? localStorage.getItem("doubleDirs") === "true"
@@ -282,7 +282,7 @@ draw_path_button.onclick = () => {
   if (from < 0 || from >= graph.nodes.length) return;
   if (to < 0 || to >= graph.nodes.length) return;
 
-  const { path, distance } = findShortestPath(graph.edges, from, to);
+  const { path, distance } = Dijkstra(graph.edges, from, to);
   path_log.textContent = `Path: ${path.join(" → ")} Distance: ${distance}`;
   graph.drawPath(path);
 };

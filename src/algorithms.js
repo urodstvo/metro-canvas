@@ -1,36 +1,56 @@
-export function findShortestPath(matrix, startNodeID, endNodeID) {
+export function Dijkstra(matrix, startNodeID, endNodeID) {
   const queue = [startNodeID];
   const visited = new Set();
-  const shortestDistances = new Array(matrix.length).fill(Infinity);
+  const numNodes = matrix.length;
+  const shortestDistances = {};
+  const prevNode = {};
+
+  // Инициализация начальных значений
+  for (let nodeID = 0; nodeID < numNodes; nodeID++) {
+    shortestDistances[nodeID] = Infinity;
+    prevNode[nodeID] = null;
+  }
   shortestDistances[startNodeID] = 0;
-  const prevNode = new Array(matrix.length).fill(null);
 
   while (queue.length > 0) {
-    const currentNode = queue.shift();
+    // Находим узел с минимальной дистанцией
+    const currentNode = queue.reduce((minNode, nodeID) => {
+      return shortestDistances[nodeID] < shortestDistances[minNode]
+        ? nodeID
+        : minNode;
+    }, queue[0]);
 
-    if (currentNode === endNodeID) {
-      break;
-    }
+    // Удаляем текущий узел из очереди
+    queue.splice(queue.indexOf(currentNode), 1);
 
-    for (let neighbor = 0; neighbor < matrix[currentNode].length; neighbor++) {
-      if (matrix[currentNode][neighbor] === 1 && !visited.has(neighbor)) {
-        queue.push(neighbor);
-        visited.add(neighbor);
-        if (shortestDistances[currentNode] + 1 < shortestDistances[neighbor]) {
-          shortestDistances[neighbor] = shortestDistances[currentNode] + 1;
-          prevNode[neighbor] = currentNode;
-        }
+    // Помечаем текущий узел как посещенный
+    visited.add(currentNode);
+
+    // Итерируемся по соседям текущего узла
+    for (let neighborID = 0; neighborID < numNodes; neighborID++) {
+      const distance = matrix[currentNode][neighborID];
+
+      if (distance === 0 || visited.has(neighborID)) {
+        continue;
+      }
+
+      // Вычисляем новую дистанцию
+      const newDistance = shortestDistances[currentNode] + distance;
+
+      if (newDistance < shortestDistances[neighborID]) {
+        // Обновляем кратчайшее расстояние и предыдущий узел
+        shortestDistances[neighborID] = newDistance;
+        prevNode[neighborID] = currentNode;
+      }
+
+      if (!queue.includes(neighborID)) {
+        // Добавляем соседа в очередь, если он еще не посещен
+        queue.push(neighborID);
       }
     }
   }
 
-  if (prevNode[endNodeID] === null) {
-    return {
-      path: [],
-      distance: Infinity,
-    };
-  }
-
+  // Восстановление кратчайшего пути
   const path = [];
   let currentNode = endNodeID;
   while (currentNode !== null) {
