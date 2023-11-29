@@ -1,3 +1,5 @@
+import { calculateAttractivenessScore } from "./algorithms";
+
 export class Graph {
   __path__color = "red";
   __node_radius = 12;
@@ -53,11 +55,11 @@ export class Graph {
 
     switch (label_direction) {
       case "up": {
-        const translateX = x - label.toString().length * 3;
-        const translateY = y - radius * 2;
+        const translateX = x;
+        const translateY = y;
         this.__canvas.translate(translateX, translateY);
         this.__canvas.rotate(-Math.PI / 2);
-        this.__canvas.fillText(label, 0, radius * 2);
+        this.__canvas.fillText(label, 2 * radius, 4);
         this.__canvas.rotate(Math.PI / 2);
         this.__canvas.translate(-translateX, -translateY);
         break;
@@ -106,35 +108,39 @@ export class Graph {
           }
         }
 
+        this.__canvas.translate(node.x, node.y);
+
+        let angle;
+        if (x_diff === 0)
+          angle = y_diff / Math.abs(y_diff) > 0 ? Math.PI / 2 : -Math.PI / 2;
+        else if (y_diff === 0)
+          angle = x_diff / Math.abs(x_diff) > 0 ? 0 : Math.PI;
+        else {
+          angle = Math.abs(Math.atan(y_diff / x_diff));
+          if (x_diff > 0 && y_diff < 0) angle = -angle;
+          if (x_diff < 0 && y_diff > 0) angle = Math.PI - angle;
+          if (x_diff < 0 && y_diff < 0) angle = -Math.PI + angle;
+        }
+
+        this.__canvas.rotate(angle);
+
+        const center = Math.sqrt(x_diff ** 2 + y_diff ** 2) / 2;
+        const coef = Math.abs(angle) > Math.PI ? -1 : 1;
+
+        if (Math.abs(angle) <= Math.PI / 2 && angle !== -Math.PI / 2)
+          this.__canvas.fillText(distance, center - 8, 14);
+
         if (this.__edges[ind][node.id] < this.__edges[node.id][ind]) {
-          this.__canvas.translate(node.x, node.y);
-
-          let angle;
-          if (x_diff === 0) angle = y_diff / Math.abs(y_diff) > 0 ? 0 : Math.PI;
-          else if (y_diff === 0)
-            angle = x_diff / Math.abs(x_diff) > 0 ? 0 : Math.PI;
-          else {
-            angle = Math.abs(Math.atan(y_diff / x_diff));
-            if (x_diff > 0 && y_diff < 0) angle = -angle;
-            if (x_diff < 0 && y_diff > 0) angle = Math.PI - angle;
-            if (x_diff < 0 && y_diff < 0) angle = -Math.PI + angle;
-          }
-
-          this.__canvas.rotate(angle);
-
-          const center = Math.sqrt(x_diff ** 2 + y_diff ** 2) / 2;
-          const coef = Math.abs(angle) > Math.PI ? -1 : 1;
-
           const Arrow = new Path2D();
           Arrow.moveTo(center, 0);
           Arrow.lineTo(center - 8 * coef, 4);
           Arrow.lineTo(center - 8 * coef, -4);
           Arrow.lineTo(center, 0);
-
           this.__canvas.fill(Arrow);
-          this.__canvas.rotate(-angle);
-          this.__canvas.translate(-node.x, -node.y);
         }
+
+        this.__canvas.rotate(-angle);
+        this.__canvas.translate(-node.x, -node.y);
 
         const Edge = new Path2D();
         Edge.moveTo(node.x, node.y);
@@ -158,6 +164,7 @@ export class Graph {
 
   addNode(node) {
     this.__nodes.push(node);
+    this.__nodes = calculateAttractivenessScore(this.__nodes);
 
     if (this.__edges) this.__edges.forEach((edge) => edge.push(0));
     this.__edges.push(new Array(this.__nodes.length).fill(0));
@@ -170,6 +177,7 @@ export class Graph {
     this.__nodes.forEach((node) => {
       if (node.id > id) node.id--;
     });
+    this.__nodes = calculateAttractivenessScore(this.__nodes);
 
     this.__edges = this.__edges.filter((_, ind) => ind !== id);
     this.__edges = this.__edges.map((edge) =>

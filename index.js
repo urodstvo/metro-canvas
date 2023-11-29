@@ -1,7 +1,7 @@
 import "./style.css";
 import { UI } from "./src/ui";
 import { Graph } from "./src/canvas";
-import { Dijkstra } from "./src/algorithms";
+import { Dijkstra, findMaxAttractivePath } from "./src/algorithms";
 
 let doubleDirs = localStorage.getItem("doubleDirs")
   ? localStorage.getItem("doubleDirs") === "true"
@@ -23,7 +23,6 @@ const node_input = UI.createElement("div", { class: ["node-input"] });
 const node_x_input = UI.createElement("input", { id: "node-x" });
 const node_y_input = UI.createElement("input", { id: "node-y" });
 const node_label_input = UI.createElement("input", { id: "node-label" });
-// const node_input_wrapper = UI.createElement("div");
 node_x_input.placeholder = "x";
 node_x_input.type = "number";
 node_y_input.placeholder = "y";
@@ -51,7 +50,11 @@ path_to.type = "number";
 path_to.placeholder = "to (id)";
 const draw_path_button = UI.createElement("button", {
   id: "draw-path",
-  text: "draw path",
+  text: "draw shortest path",
+});
+const draw_attractive_button = UI.createElement("button", {
+  id: "draw-attractive",
+  text: "draw attractive path",
 });
 const save_button = UI.createElement("button", {
   id: "save",
@@ -92,7 +95,13 @@ UI.append(config_content, [cfg_title, $nodes, open_modal_button, $path]);
 UI.append($nodes, [$nodes_legend, nodes_list, node_input_container]);
 UI.append(node_input_container, [node_input, add_node_button]);
 UI.append(node_input, [node_x_input, node_y_input, node_label_input]);
-UI.append($path, [$path_legend, path_log, path_input, draw_path_button]);
+UI.append($path, [
+  $path_legend,
+  path_log,
+  path_input,
+  draw_path_button,
+  draw_attractive_button,
+]);
 UI.append(path_input, [path_from, path_to]);
 UI.append($canvas, [canvas]);
 UI.append(modal, [modal_content]);
@@ -258,6 +267,7 @@ add_node_button.onclick = () => {
       ? node_label_input.value
       : graph.nodes.length.toString(),
     label_direction: "up",
+    score: null,
   };
   graph.addNode(node);
   addAllNodesToUI(graph.nodes);
@@ -284,6 +294,26 @@ draw_path_button.onclick = () => {
 
   const { path, distance } = Dijkstra(graph.edges, from, to);
   path_log.textContent = `Path: ${path.join(" → ")} Distance: ${distance}`;
+  graph.drawPath(path);
+};
+
+draw_attractive_button.onclick = () => {
+  if (path_from.value === "" || path_to.value === "") return;
+  const from = parseInt(path_from.value);
+  const to = parseInt(path_to.value);
+
+  if (from < 0 || from >= graph.nodes.length) return;
+  if (to < 0 || to >= graph.nodes.length) return;
+
+  const { path, maxAttractiveness } = findMaxAttractivePath(
+    from,
+    to,
+    graph.nodes.map((node) => node.score),
+    graph.edges
+  );
+  path_log.textContent = `Path: ${path.join(
+    " → "
+  )} Distance: ${maxAttractiveness}`;
   graph.drawPath(path);
 };
 
