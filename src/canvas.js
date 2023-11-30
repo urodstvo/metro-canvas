@@ -1,223 +1,326 @@
 import { calculateAttractivenessScore } from "./algorithms";
 
-export class Graph {
-  __path__color = "red";
-  __node_radius = 12;
-  __path = new Set();
-  __canvas = null;
-  __canvas_width = 0;
-  __canvas_height = 0;
-  auto_draw = true;
+export class Node {
+  radius = 12;
+  label_direction = "up";
+  active = false;
+  path = Infinity;
 
-  constructor(nodes = [], edges = []) {
-    this.__nodes = nodes;
-    this.__edges = edges;
+  constructor(node, color = "0, 0, 0") {
+    Object.assign(this, node);
+    this.active = false;
+    this.color = color;
   }
 
-  get config() {
-    return JSON.stringify(this);
+  draw(ctx) {
+    ctx.save();
+    ctx.fillStyle = `rgba(${this.color}, 1)`;
+
+    if (this.active) {
+      ctx.fillStyle = `rgba(${this.color}, 0.5)`;
+      ctx.setLineDash([5, 5]);
+    }
+
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, 2 * Math.PI);
+    ctx.closePath();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius * 0.75, 0, 2 * Math.PI);
+    ctx.fill();
+
+    ctx.restore();
+
+    this.#drawLabel(ctx);
   }
 
-  set config(cfg) {
-    const parsed_cfg = JSON.parse(cfg);
-    Object.assign(this, parsed_cfg);
-    this.__path = new Set();
-  }
-
-  get nodes() {
-    return this.__nodes;
-  }
-
-  get edges() {
-    return this.__edges;
-  }
-
-  initCanvas(canvas) {
-    this.__canvas_width = canvas.width;
-    this.__canvas_height = canvas.height;
-    this.__canvas = canvas.getContext("2d");
-  }
-
-  #drawNode(node) {
-    const { id, x, y, label, label_direction } = node;
-    if (this.__path.has(id)) this.__canvas.fillStyle = this.__path__color;
-    const radius = this.__node_radius;
-
-    const Node = new Path2D();
-    Node.arc(x, y, radius, 0, 2 * Math.PI);
-
-    const NodeFill = new Path2D();
-    NodeFill.arc(x, y, radius * 0.75, 0, 2 * Math.PI);
-
-    Node.addPath(NodeFill);
-    this.__canvas.stroke(Node);
-    this.__canvas.fill(NodeFill);
-
+  #drawLabel(ctx) {
+    const label_direction = this.label_direction;
     switch (label_direction) {
       case "up": {
-        const translateX = x;
-        const translateY = y;
-        this.__canvas.translate(translateX, translateY);
-        this.__canvas.rotate(-Math.PI / 2);
-        this.__canvas.fillText(label, 2 * radius, 4);
-        this.__canvas.rotate(Math.PI / 2);
-        this.__canvas.translate(-translateX, -translateY);
+        ctx.save();
+        const translateX = this.x;
+        const translateY = this.y;
+
+        ctx.translate(translateX, translateY);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText(this.label, 2 * this.radius, 4);
+
+        ctx.restore();
+        // ctx.rotate(Math.PI / 2);
+        // ctx.translate(-translateX, -translateY);
         break;
       }
       case "right": {
-        this.__canvas.fillText(label, x + 2 * radius, y + 2);
+        ctx.fillText(this.label, this.x + 2 * this.radius, this.y + 2);
         break;
       }
       case "down": {
-        this.__canvas.fillText(
-          label,
-          x - label.toString().length * 3,
-          y + 2 * radius
-        );
+        const textX = this.x - this.label.toString().length * 3;
+        const textY = this.y + 2 * this.radius;
+        ctx.fillText(this.label, textX, textY);
         break;
       }
       case "left": {
-        this.__canvas.fillText(
-          label,
-          x - label.toString().length * 4 - 2 * radius,
-          y + 2
-        );
+        const textX =
+          this.x - this.label.toString().length * 4 - 2 * this.radius;
+        const textY = this.y + 2;
+        ctx.fillText(this.label, textX, textY);
         break;
       }
     }
-
-    this.__canvas.fillStyle = "#000";
   }
 
-  #drawEdgesFor(node) {
-    this.__edges[node.id].map((distance, ind) => {
-      if (!!distance) {
-        const x_diff = this.__nodes[ind].x - node.x;
-        const y_diff = this.__nodes[ind].y - node.y;
-        if (x_diff === 0 && y_diff === 0) return;
+  isHovered(mouse) {
+    return (
+      (mouse.x - this.x) ** 2 + (mouse.y - this.y) ** 2 <= this.radius ** 2
+    );
+  }
+}
 
-        if (this.__path.has(node.id) && this.__path.has(ind)) {
-          const arr_path = Array.from(this.__path);
+class Edge {
+  color = "0, 0, 0";
+  constructor(from, to, distance, isOneWay) {
+    this.from = from;
+    this.to = to;
+    this.distance = distance;
+    this.isOneWay = isOneWay;
+    if (from.path === to.path - 1) this.color = from.color;
+    this.#findAngle();
+  }
 
-          const ind_path = arr_path.indexOf(ind);
-          const node_path = arr_path.indexOf(node.id);
+  #findAngle() {
+    const x_diff = this.to.x - this.from.x;
+    const y_diff = this.to.y - this.from.y;
+    if (x_diff === 0 && y_diff === 0) {
+      this.angle = 0;
+      return;
+    }
 
-          if (ind_path === node_path + 1 || ind_path === node_path - 1) {
-            this.__canvas.strokeStyle = this.__path__color;
-            this.__canvas.fillStyle = this.__path__color;
-          }
+    let angle;
+    if (x_diff === 0)
+      angle = y_diff / Math.abs(y_diff) > 0 ? Math.PI / 2 : -Math.PI / 2;
+    else if (y_diff === 0) angle = x_diff / Math.abs(x_diff) > 0 ? 0 : Math.PI;
+    else {
+      angle = Math.abs(Math.atan(y_diff / x_diff));
+      if (x_diff > 0 && y_diff < 0) angle = -angle;
+      if (x_diff < 0 && y_diff > 0) angle = Math.PI - angle;
+      if (x_diff < 0 && y_diff < 0) angle = -Math.PI + angle;
+    }
+
+    this.angle = angle;
+  }
+
+  #drawArrow(ctx) {
+    ctx.fillStyle = `rgb(${this.color})`;
+
+    const x_diff = this.to.x - this.from.x;
+    const y_diff = this.to.y - this.from.y;
+    if (x_diff === 0 && y_diff === 0) return;
+
+    const center = Math.sqrt(x_diff ** 2 + y_diff ** 2) / 2;
+    const coef = Math.abs(this.angle) > Math.PI ? -1 : 1;
+
+    ctx.beginPath();
+
+    ctx.moveTo(center, 0);
+    ctx.lineTo(center - 8 * coef, 4);
+    ctx.lineTo(center - 8 * coef, -4);
+    ctx.lineTo(center, 0);
+    ctx.fill();
+
+    ctx.closePath();
+  }
+
+  #drawLabel(ctx) {
+    const x_diff = this.to.x - this.from.x;
+    const y_diff = this.to.y - this.from.y;
+    if (x_diff === 0 && y_diff === 0) return;
+
+    const center = Math.sqrt(x_diff ** 2 + y_diff ** 2) / 2;
+    ctx.save();
+    if (Math.abs(this.angle) > Math.PI / 2) {
+      ctx.translate(center + 8, 14);
+      ctx.rotate(Math.PI);
+      ctx.fillText(this.distance, 0, 0);
+    } else ctx.fillText(this.distance, center - 10, -14);
+    ctx.restore();
+  }
+
+  draw(ctx) {
+    ctx.save();
+
+    ctx.strokeStyle = `rgb(${this.color})`;
+
+    ctx.beginPath();
+    ctx.moveTo(this.from.x, this.from.y);
+    ctx.lineTo(this.to.x, this.to.y);
+    ctx.stroke();
+
+    ctx.translate(this.from.x, this.from.y);
+
+    ctx.rotate(this.angle);
+
+    this.#drawLabel(ctx);
+    if (this.isOneWay) this.#drawArrow(ctx);
+
+    ctx.restore();
+  }
+}
+
+export class Canvas {
+  nodes = [];
+  edges = [];
+  constructor(canvas = document.getElementById("canvas"), cfg) {
+    if (cfg) {
+      Object.assign(this, cfg);
+      this.nodes = this.nodes.map((node) => new Node(node));
+    }
+    this.canvas = canvas;
+    this.ctx = this.canvas.getContext("2d");
+
+    this.#prepare();
+  }
+
+  get config() {
+    const cfg = {};
+    Object.assign(cfg, this);
+
+    return cfg;
+  }
+
+  #prepare() {
+    window.addEventListener("resize", () => {
+      this.canvas.width = window.innerWidth * 0.95;
+      this.canvas.height = window.innerHeight * 0.95;
+    });
+
+    this.canvas.addEventListener("mousemove", (e) => {
+      const canvasRect = this.canvas.getBoundingClientRect();
+      const mouse = {
+        x: e.pageX - canvasRect.left,
+        y: e.pageY - canvasRect.top,
+      };
+
+      let isHoveredArray = this.nodes.map((node) => node.isHovered(mouse));
+      !isHoveredArray.every((isHover) => isHover === false)
+        ? canvas.classList.add("hover")
+        : canvas.classList.remove("hover");
+
+      this.nodes.forEach((node) => {
+        if (node.active) {
+          node.x = mouse.x - node.offset.x;
+          node.y = mouse.y - node.offset.y;
         }
+      });
+    });
 
-        this.__canvas.translate(node.x, node.y);
+    this.canvas.addEventListener("mousedown", (e) => {
+      const canvasRect = this.canvas.getBoundingClientRect();
+      const mouse = {
+        x: e.pageX - canvasRect.left,
+        y: e.pageY - canvasRect.top,
+      };
 
-        let angle;
-        if (x_diff === 0)
-          angle = y_diff / Math.abs(y_diff) > 0 ? Math.PI / 2 : -Math.PI / 2;
-        else if (y_diff === 0)
-          angle = x_diff / Math.abs(x_diff) > 0 ? 0 : Math.PI;
-        else {
-          angle = Math.abs(Math.atan(y_diff / x_diff));
-          if (x_diff > 0 && y_diff < 0) angle = -angle;
-          if (x_diff < 0 && y_diff > 0) angle = Math.PI - angle;
-          if (x_diff < 0 && y_diff < 0) angle = -Math.PI + angle;
-        }
+      this.nodes.forEach((node) => {
+        if (node.isHovered(mouse)) {
+          node.active = true;
+          node.offset = {
+            x: mouse.x - node.x,
+            y: mouse.y - node.y,
+          };
+        } else node.active = false;
+      });
+    });
 
-        this.__canvas.rotate(angle);
-
-        const center = Math.sqrt(x_diff ** 2 + y_diff ** 2) / 2;
-        const coef = Math.abs(angle) > Math.PI ? -1 : 1;
-
-        if (Math.abs(angle) <= Math.PI / 2 && angle !== -Math.PI / 2)
-          this.__canvas.fillText(distance, center - 8, 14);
-
-        if (this.__edges[ind][node.id] < this.__edges[node.id][ind]) {
-          const Arrow = new Path2D();
-          Arrow.moveTo(center, 0);
-          Arrow.lineTo(center - 8 * coef, 4);
-          Arrow.lineTo(center - 8 * coef, -4);
-          Arrow.lineTo(center, 0);
-          this.__canvas.fill(Arrow);
-        }
-
-        this.__canvas.rotate(-angle);
-        this.__canvas.translate(-node.x, -node.y);
-
-        const Edge = new Path2D();
-        Edge.moveTo(node.x, node.y);
-        Edge.lineTo(this.__nodes[ind].x, this.__nodes[ind].y);
-
-        this.__canvas.stroke(Edge);
-      }
-
-      this.__canvas.strokeStyle = "#000";
-      this.__canvas.fillStyle = "#000";
+    this.canvas.addEventListener("mouseup", (e) => {
+      this.nodes.forEach((node) => (node.active = false));
+      this.nodes = calculateAttractivenessScore(this.nodes);
     });
   }
 
-  setDistance(from, to, distance) {
-    this.__edges[from][to] = distance;
-  }
+  #getPerformedEdges() {
+    const total = this.nodes.length;
 
-  getDistance(from, to) {
-    return this.__edges[from][to];
+    const edges = [];
+    for (let row = 0; row < total - 1; row++) {
+      for (let col = row + 1; col < total; col++) {
+        if (this.edges[row][col] === this.edges[col][row]) {
+          if (this.edges[row][col] > 0) {
+            const from = this.nodes[row];
+            const to = this.nodes[col];
+            const distance = this.edges[row][col];
+
+            edges.push(new Edge(from, to, distance, false));
+          }
+        } else {
+          let from, to, distance;
+
+          if (this.edges[row][col] > this.edges[col][row]) {
+            from = this.nodes[row];
+            to = this.nodes[col];
+            distance = this.edges[row][col];
+          } else {
+            from = this.nodes[col];
+            to = this.nodes[row];
+            distance = this.edges[col][row];
+          }
+
+          edges.push(new Edge(from, to, distance, true));
+        }
+      }
+    }
+
+    return edges;
   }
 
   addNode(node) {
-    this.__nodes.push(node);
-    this.__nodes = calculateAttractivenessScore(this.__nodes);
+    this.nodes.push(node);
+    this.nodes = calculateAttractivenessScore(this.nodes);
 
-    if (this.__edges) this.__edges.forEach((edge) => edge.push(0));
-    this.__edges.push(new Array(this.__nodes.length).fill(0));
-
-    if (this.auto_draw && this.__canvas) this.draw();
+    if (this.edges) this.edges.forEach((edge) => edge.push(0));
+    this.edges.push(new Array(this.nodes.length).fill(0));
   }
 
   deleteNode(id) {
-    this.__nodes = this.__nodes.filter((node) => node.id !== id);
-    this.__nodes.forEach((node) => {
+    this.nodes = this.nodes.filter((node) => node.id !== id);
+    this.nodes.map((node) => {
       if (node.id > id) node.id--;
     });
-    this.__nodes = calculateAttractivenessScore(this.__nodes);
 
-    this.__edges = this.__edges.filter((_, ind) => ind !== id);
-    this.__edges = this.__edges.map((edge) =>
-      edge.filter((_, ind) => ind !== id)
-    );
+    this.nodes = calculateAttractivenessScore(this.nodes);
 
-    if (this.__path.has(id)) this.__path.clear();
+    this.edges = this.edges.filter((_, ind) => ind !== id);
+    this.edges = this.edges.map((edge) => edge.filter((_, ind) => ind !== id));
+  }
 
-    if (this.auto_draw && this.__canvas) this.draw();
+  #clearPath() {
+    this.nodes.forEach((node) => (node.color = "0, 0, 0"));
+    this.nodes.forEach((node) => (node.path = Infinity));
+    this.edges.forEach((edge) => (edge.color = "0, 0, 0"));
+  }
+
+  visualize(path) {
+    this.#clearPath();
+    let ind = 0;
+
+    const interval = setInterval(() => {
+      this.nodes[path[ind]].color = "255, 0, 0";
+      this.nodes[path[ind]].path = ind;
+      ind++;
+
+      if (path.length === ind) clearInterval(interval);
+    }, 600);
   }
 
   draw() {
-    this.__canvas.clearRect(0, 0, this.__canvas_width, this.__canvas_height);
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.fillStyle = "#000";
 
-    const elems = [];
-    elems.push(
-      this.__nodes.filter((node) => !this.__path.has(node.id)),
-      this.__nodes.filter((node) => this.__path.has(node.id))
-    );
+    const edges = this.#getPerformedEdges();
+    edges.forEach((edge) => edge.draw(this.ctx));
 
-    elems.forEach((nodes) => {
-      nodes.forEach((node) => {
-        this.__canvas.fillStyle = "#000";
-        this.__canvas.strokeStyle = "#000";
-        this.#drawEdgesFor(node);
-        this.#drawNode(node);
-      });
-    });
-  }
-
-  drawPath(path) {
-    this.__path.clear();
-    const path_copy = [...path];
-
-    const interval = setInterval(() => {
-      const node = path_copy.shift();
-      this.__path.add(node);
-      this.draw();
-
-      if (path_copy.length === 0) clearInterval(interval);
-    }, 600);
+    this.nodes.forEach((node) => node.draw(this.ctx));
   }
 }

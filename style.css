@@ -11,12 +11,14 @@ button {
 
 fieldset {
   border: 1px solid #000;
+  border-radius: 5px;
 }
 
 body {
   display: flex;
   justify-content: center;
   align-items: center;
+  overflow: hidden;
 }
 
 #root {
@@ -38,6 +40,7 @@ body {
         max-width: 100%;
       }
 
+      box-shadow: 0 2px 7px rgba(0, 0, 0, 0.25);
       transition: max-width 1.2s, max-height 1.2s;
       overflow: hidden;
       background: #fff;
@@ -47,8 +50,8 @@ body {
 
       position: absolute;
       z-index: 10000;
-      top: 1.5dvh;
-      left: 1vw;
+      top: 20px;
+      left: 20px;
 
       max-height: 45px;
       max-width: 78px;
@@ -60,9 +63,8 @@ body {
         width: 100%;
         height: 30px;
         font-size: 20px;
-        background: #898989;
+        background: #585858;
         color: #fff;
-        border-radius: 15px;
       }
 
       & > .config-content {
@@ -92,7 +94,7 @@ body {
             & > .nodes-list-header {
               width: 300px;
               display: grid;
-              grid-template-columns: repeat(3, 0.5fr) 1fr;
+              grid-template-columns: 0.5fr 2.5fr 0.5fr 1fr;
               margin-right: 50px;
             }
 
@@ -104,37 +106,43 @@ body {
               & > .node-data {
                 width: 300px;
                 display: grid;
-                grid-template-columns: repeat(3, 0.5fr) 1fr;
+                grid-template-columns: 0.5fr 2.5fr 0.5fr 1fr;
               }
 
               & > button {
-                padding: 0 10px;
-                border-radius: 5px;
+                padding: 5px 10px;
+                border: 1px solid #000;
               }
             }
           }
 
           & > .node-input-container {
             position: sticky;
-            bottom: 0;
+            bottom: -5px;
             display: flex;
-            justify-content: space-between;
+            align-items: center;
             padding: 10px;
+            gap: 20px;
             background: #fff;
+            height: 50px;
 
             & > #add-node {
-              padding: 0 10px;
+              width: 120px;
               border-radius: 5px;
+              border: 1px solid #000;
+              height: 30px;
             }
 
             & > .node-input {
-              width: fit-content;
+              width: 100%;
+              height: 100%;
               display: flex;
               align-items: center;
               gap: 10px;
 
               & > input {
-                width: 50px;
+                height: 100%;
+                flex: 1;
                 border-radius: 5px;
                 border: 1px solid #000;
                 padding-left: 5px;
@@ -151,7 +159,7 @@ body {
           width: 100%;
           padding: 5px 0;
           font-size: 20px;
-          background: #898989;
+          background: #585858;
           color: #fff;
         }
 
@@ -161,6 +169,11 @@ body {
           gap: 5px;
           padding: 10px 5px 5px;
 
+          & > button {
+            height: 20px;
+            border: 1px solid #000;
+          }
+
           & > .path-log {
             text-align: center;
           }
@@ -168,12 +181,13 @@ body {
           & > .path-input {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 15px;
             padding: 0 10px;
 
             & > input {
               border: 1px solid #000;
               padding-left: 5px;
+              height: 20px;
             }
           }
         }
@@ -186,10 +200,12 @@ body {
 
       & > #canvas {
         border: 2px solid #000;
-        cursor: grab;
 
-        &:active {
-          cursor: grabbing;
+        &.hover {
+          cursor: grab;
+          &:active {
+            cursor: grabbing;
+          }
         }
       }
     }
@@ -241,7 +257,7 @@ body {
         }
 
         & th {
-          background: #898989;
+          background: #585858;
         }
       }
     }

@@ -106,30 +106,7 @@ export function calculateAttractivenessScore(graph) {
     const originalNode = graph.find((original) => original.id === node.id);
     originalNode.score = score;
   }
-
   return graph;
-}
-
-class PriorityQueue {
-  constructor() {
-    this.queue = [];
-  }
-
-  enqueue(item, priority) {
-    this.queue.push({ item, priority });
-    this.queue.sort((a, b) => a.priority - b.priority);
-  }
-
-  dequeue() {
-    if (this.isEmpty()) {
-      return null;
-    }
-    return this.queue.shift().item;
-  }
-
-  isEmpty() {
-    return this.queue.length === 0;
-  }
 }
 
 export function findMaxAttractivePath(

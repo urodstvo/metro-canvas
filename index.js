@@ -1,12 +1,12 @@
 import "./style.css";
 import { UI } from "./src/ui";
-import { Graph } from "./src/canvas";
+import { Canvas, Node } from "./src/canvas";
 import { Dijkstra, findMaxAttractivePath } from "./src/algorithms";
 
-let doubleDirs = localStorage.getItem("doubleDirs")
-  ? localStorage.getItem("doubleDirs") === "true"
-  : true;
-const graph = new Graph();
+let doubleDirs;
+if (localStorage.getItem("doubleDirs"))
+  doubleDirs = localStorage.getItem("doubleDirs") === "true";
+else doubleDirs = true;
 
 const root = UI.getElement("#root");
 const wrapper = UI.createElement("div", { class: ["wrapper"] });
@@ -15,10 +15,26 @@ const config_content = UI.createElement("div", { class: ["config-content"] });
 const cfg_title = UI.createElement("h3", { text: "Config" });
 cfg_title.onclick = () => {
   $config.classList.toggle("opened");
+  if ($config.getBoundingClientRect().left + 420 > window.innerWidth) {
+    $config.style.transition = "left 0.5s ease";
+    $config.style.left = window.innerWidth - 420 + "px";
+    setTimeout(() => ($config.style.transition = ""), 500);
+  }
 };
 
+window.addEventListener("resize", () => {
+  if (
+    $config.getBoundingClientRect().left + $config.offsetWidth >
+    window.innerWidth
+  ) {
+    $config.style.transition = "left 0.5s ease";
+    $config.style.left = window.innerWidth - $config.offsetWidth + "px";
+    setTimeout(() => ($config.style.transition = ""), 500);
+  }
+});
+
 $config.draggable = true;
-$config.onmousedown = (e) => {
+cfg_title.onmousedown = (e) => {
   var coords = getCoords($config);
   var shiftX = e.pageX - coords.left;
   var shiftY = e.pageY - coords.top;
@@ -28,6 +44,21 @@ $config.onmousedown = (e) => {
   function moveAt(e) {
     $config.style.left = e.pageX - shiftX + "px";
     $config.style.top = e.pageY - shiftY + "px";
+
+    if (e.pageX - shiftX + $config.offsetWidth > window.innerWidth) {
+      $config.style.left = window.innerWidth - $config.offsetWidth + "px";
+    }
+    if (e.pageY - shiftY + $config.offsetHeight > window.innerHeight) {
+      $config.style.top = window.innerHeight - $config.offsetHeight + "px";
+    }
+
+    if (e.pageX - shiftX < 0) {
+      $config.style.left = 0 + "px";
+    }
+    if (e.pageY - shiftY < 0) {
+      $config.style.top = 0 + "px";
+    }
+
     localStorage.setItem(
       "cfg_pos",
       JSON.stringify({ left: $config.style.left, top: $config.style.top })
@@ -65,22 +96,12 @@ const node_input_container = UI.createElement("div", {
   class: ["node-input-container"],
 });
 const node_input = UI.createElement("div", { class: ["node-input"] });
-const node_x_input = UI.createElement("input", { id: "node-x" });
-const node_y_input = UI.createElement("input", { id: "node-y" });
 const node_label_input = UI.createElement("input", { id: "node-label" });
-node_x_input.placeholder = "x";
-node_x_input.type = "number";
-node_y_input.placeholder = "y";
-node_y_input.type = "number";
 node_label_input.placeholder = "label";
 node_label_input.type = "text";
 const add_node_button = UI.createElement("button", {
   id: "add-node",
   text: "+ add node",
-});
-const delete_node_button = UI.createElement("button", {
-  id: "delete-node",
-  text: "delete",
 });
 
 const $path = UI.createElement("fieldset", { class: ["path"] });
@@ -91,6 +112,7 @@ const path_from = UI.createElement("input", { id: "path-from" });
 const path_to = UI.createElement("input", { id: "path-to" });
 path_from.type = "number";
 path_from.placeholder = "from (id)";
+
 path_to.type = "number";
 path_to.placeholder = "to (id)";
 const draw_path_button = UI.createElement("button", {
@@ -103,11 +125,16 @@ const draw_attractive_button = UI.createElement("button", {
 });
 const save_button = UI.createElement("button", {
   id: "save",
-  text: "save",
+  text: "Save Config",
 });
+
+save_button.onclick = () => {
+  localStorage.setItem("cfg", JSON.stringify(graph.config));
+};
 
 const $canvas = UI.createElement("div", { class: ["canvas-container"] });
 const canvas = UI.createElement("canvas", { id: "canvas" });
+
 canvas.width = window.innerWidth * 0.95;
 canvas.height = window.innerHeight * 0.95;
 
@@ -128,10 +155,19 @@ const close_modal_button = UI.createElement("button", {
   id: "close-modal",
   text: "close",
 });
+
+close_modal_button.onclick = () => {
+  modal.close();
+};
+
 const open_modal_button = UI.createElement("button", {
   id: "open-modal",
-  text: "Edit edges",
+  text: "Transition Matrix",
 });
+
+open_modal_button.onclick = () => {
+  modal.showModal();
+};
 
 UI.append(root, [wrapper, modal]);
 UI.append(wrapper, [$config, $canvas]);
@@ -139,7 +175,7 @@ UI.append($config, [config_content, save_button]);
 UI.append(config_content, [cfg_title, $nodes, open_modal_button, $path]);
 UI.append($nodes, [$nodes_legend, nodes_list, node_input_container]);
 UI.append(node_input_container, [node_input, add_node_button]);
-UI.append(node_input, [node_x_input, node_y_input, node_label_input]);
+UI.append(node_input, [node_label_input]);
 UI.append($path, [
   $path_legend,
   path_log,
@@ -157,19 +193,17 @@ const nodes_list_header = UI.createElement("div", {
   class: ["nodes-list-header"],
 });
 const nodes_list_header_id = UI.createElement("span", { text: "id" });
-const nodes_list_header_x = UI.createElement("span", { text: "x" });
-const nodes_list_header_y = UI.createElement("span", { text: "y" });
 const nodes_list_header_label = UI.createElement("span", { text: "label" });
+const nodes_list_header_score = UI.createElement("span", { text: "score" });
 
 UI.append(nodes_list_header, [
   nodes_list_header_id,
-  nodes_list_header_x,
-  nodes_list_header_y,
   nodes_list_header_label,
+  nodes_list_header_score,
 ]);
 
-function addNodeToUI(node) {
-  const { id, x, y, label, label_direction } = node;
+function addToUI(node) {
+  const { id, label, label_direction, score } = node;
 
   let arrow;
   switch (label_direction) {
@@ -190,17 +224,18 @@ function addNodeToUI(node) {
   const node_item = UI.createElement("div", { class: ["node-item"] });
   const node_data = UI.createElement("div", { class: ["node-data"] });
   const node_id = UI.createElement("span", { text: id.toString() });
-  const node_x = UI.createElement("span", { text: x.toString() });
-  const node_y = UI.createElement("span", { text: y.toString() });
+  const node_score = UI.createElement("span", {
+    text: score ? score.toString() : "",
+  });
   const node_label = UI.createElement("span", {
     text: [arrow, label].join(" "),
     style: "cursor: pointer;",
   });
+
   const delete_button = UI.createElement("button", { text: "delete" });
   delete_button.onclick = () => {
     graph.deleteNode(id);
-    buildEdgesTable();
-    addAllNodesToUI(graph.nodes);
+    updateUI(graph.nodes);
   };
 
   node_label.onclick = () => {
@@ -222,27 +257,23 @@ function addNodeToUI(node) {
         node_label.textContent = ["↑", label].join(" ");
         break;
     }
-
-    graph.draw();
   };
 
   UI.append(node_item, [node_data, delete_button]);
-  UI.append(node_data, [node_id, node_x, node_y, node_label]);
+  UI.append(node_data, [node_id, node_label, node_score]);
 
   UI.append(nodes_list, [node_item]);
 }
 
-function addAllNodesToUI(nodes) {
+function updateUI(nodes) {
   nodes_list.innerHTML = "";
-
   UI.append(nodes_list, [nodes_list_header]);
 
-  nodes.forEach((node) => {
-    addNodeToUI(node);
-  });
+  nodes.forEach((node) => addToUI(node));
+  buildMatrix();
 }
 
-function buildEdgesTable() {
+function buildMatrix() {
   table_header.innerHTML = "";
   table_body.innerHTML = "";
 
@@ -272,7 +303,7 @@ function buildEdgesTable() {
           graph.edges[i][j - 1] = parseInt(e.target.value);
           if (doubleDirs) graph.edges[j - 1][i] = parseInt(e.target.value);
           else graph.edges[j - 1][i] = 0;
-          buildEdgesTable();
+          buildMatrix();
           graph.draw();
         };
         UI.append(cell, [input]);
@@ -284,57 +315,16 @@ function buildEdgesTable() {
   }
 }
 
-function saveConfig() {
-  localStorage.setItem("cfg", graph.config);
-}
-
-function loadConfig() {
-  console.log(localStorage.getItem("cfg_pos"));
-  if (localStorage.getItem("cfg_pos")) {
-    const { left, top } = JSON.parse(localStorage.getItem("cfg_pos"));
-    $config.style.left = left;
-    $config.style.top = top;
-  }
-
-  if (localStorage.getItem("cfg")) {
-    graph.config = localStorage.getItem("cfg");
-    graph.initCanvas(canvas);
-    graph.draw();
-    buildEdgesTable();
-    addAllNodesToUI(graph.nodes);
-
-    return true;
-  }
-
-  return false;
-}
-
 add_node_button.onclick = () => {
-  if (node_x_input.value === "" || node_y_input.value === "") return;
-  const node = {
-    id: graph.nodes.length,
-    x: parseInt(node_x_input.value),
-    y: parseInt(node_y_input.value),
-    label: !!node_label_input.value
-      ? node_label_input.value
-      : graph.nodes.length.toString(),
-    label_direction: "up",
-    score: null,
-  };
+  const label = !!node_label_input.value
+    ? node_label_input.value
+    : graph.nodes.length.toString();
+
+  const node = new Node({ id: graph.nodes.length, x: 50, y: 50, label });
+
   graph.addNode(node);
-  addAllNodesToUI(graph.nodes);
-  buildEdgesTable();
+  updateUI(graph.nodes);
 };
-
-open_modal_button.onclick = () => {
-  modal.showModal();
-};
-
-close_modal_button.onclick = () => {
-  modal.close();
-};
-
-save_button.onclick = saveConfig;
 
 draw_path_button.onclick = () => {
   if (path_from.value === "" || path_to.value === "") return;
@@ -345,8 +335,12 @@ draw_path_button.onclick = () => {
   if (to < 0 || to >= graph.nodes.length) return;
 
   const { path, distance } = Dijkstra(graph.edges, from, to);
-  path_log.textContent = `Path: ${path.join(" → ")} Distance: ${distance}`;
-  graph.drawPath(path);
+  if (path.length > 0 && distance !== Infinity) {
+    path_log.textContent = `Path: ${path.join(" → ")} Distance: ${distance}`;
+    graph.visualize(path);
+  } else {
+    path_log.textContent = `No Path`;
+  }
 };
 
 draw_attractive_button.onclick = () => {
@@ -363,10 +357,35 @@ draw_attractive_button.onclick = () => {
     graph.nodes.map((node) => node.score),
     graph.edges
   );
-  path_log.textContent = `Path: ${path.join(
-    " → "
-  )} Distance: ${maxAttractiveness}`;
-  graph.drawPath(path);
+
+  if (path.length > 0 && maxAttractiveness > 0) {
+    path_log.textContent = `Path: ${path.join(
+      " → "
+    )} Distance: ${maxAttractiveness}`;
+    graph.visualize(path);
+  } else {
+    path_log.textContent = `No Path`;
+  }
 };
 
-!loadConfig() && graph.initCanvas(canvas);
+if (localStorage.getItem("cfg_pos")) {
+  const { left, top } = JSON.parse(localStorage.getItem("cfg_pos"));
+  $config.style.left = left;
+  $config.style.top = top;
+}
+
+let cfg;
+if (localStorage.getItem("cfg")) cfg = JSON.parse(localStorage.getItem("cfg"));
+
+const graph = new Canvas(canvas, cfg);
+updateUI(graph.nodes);
+
+const loop = () => {
+  graph.draw();
+  canvas.onmouseup = () => {
+    updateUI(graph.nodes);
+  };
+  window.requestAnimationFrame(loop);
+};
+
+loop();
