@@ -13,6 +13,51 @@ const wrapper = UI.createElement("div", { class: ["wrapper"] });
 const $config = UI.createElement("div", { class: ["config-container"] });
 const config_content = UI.createElement("div", { class: ["config-content"] });
 const cfg_title = UI.createElement("h3", { text: "Config" });
+cfg_title.onclick = () => {
+  $config.classList.toggle("opened");
+};
+
+$config.draggable = true;
+$config.onmousedown = (e) => {
+  var coords = getCoords($config);
+  var shiftX = e.pageX - coords.left;
+  var shiftY = e.pageY - coords.top;
+
+  moveAt(e);
+
+  function moveAt(e) {
+    $config.style.left = e.pageX - shiftX + "px";
+    $config.style.top = e.pageY - shiftY + "px";
+    localStorage.setItem(
+      "cfg_pos",
+      JSON.stringify({ left: $config.style.left, top: $config.style.top })
+    );
+  }
+
+  document.onmousemove = function (e) {
+    cfg_title.style = "pointer-events: none;";
+    moveAt(e);
+  };
+
+  $config.onmouseup = function () {
+    document.onmousemove = null;
+    $config.onmouseup = null;
+    cfg_title.style = "pointer-events: all;";
+  };
+};
+
+$config.ondragstart = function () {
+  return false;
+};
+
+function getCoords(elem) {
+  var box = elem.getBoundingClientRect();
+  return {
+    top: box.top + scrollY,
+    left: box.left + scrollX,
+  };
+}
+
 const $nodes = UI.createElement("fieldset", { class: ["nodes"] });
 const $nodes_legend = UI.createElement("legend", { text: "nodes" });
 const nodes_list = UI.createElement("div", { class: ["nodes-list"] });
@@ -63,8 +108,8 @@ const save_button = UI.createElement("button", {
 
 const $canvas = UI.createElement("div", { class: ["canvas-container"] });
 const canvas = UI.createElement("canvas", { id: "canvas" });
-canvas.width = 1000;
-canvas.height = 500;
+canvas.width = window.innerWidth * 0.95;
+canvas.height = window.innerHeight * 0.95;
 
 const modal = UI.createElement("dialog", { class: ["modal"] });
 const modal_content = UI.createElement("div", { class: ["modal-content"] });
@@ -244,6 +289,13 @@ function saveConfig() {
 }
 
 function loadConfig() {
+  console.log(localStorage.getItem("cfg_pos"));
+  if (localStorage.getItem("cfg_pos")) {
+    const { left, top } = JSON.parse(localStorage.getItem("cfg_pos"));
+    $config.style.left = left;
+    $config.style.top = top;
+  }
+
   if (localStorage.getItem("cfg")) {
     graph.config = localStorage.getItem("cfg");
     graph.initCanvas(canvas);

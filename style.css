@@ -20,19 +20,41 @@ body {
 }
 
 #root {
-  width: 1300px;
-  position: relative;
+  width: 100vw;
+  height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
   & > .wrapper {
+    width: 95%;
+    height: 95%;
     display: flex;
     gap: 20px;
 
     & > .config-container {
-      min-height: 500px;
-      height: 100%;
+      &.opened {
+        max-height: 100%;
+        max-width: 100%;
+      }
+
+      transition: max-width 1.2s, max-height 1.2s;
+      overflow: hidden;
+      background: #fff;
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid #000;
+
+      position: absolute;
+      z-index: 10000;
+      top: 1.5dvh;
+      left: 1vw;
+
+      max-height: 45px;
+      max-width: 78px;
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
+      gap: 50px;
 
       & > #save {
         width: 100%;
@@ -47,6 +69,10 @@ body {
         display: flex;
         flex-direction: column;
         gap: 10px;
+
+        & > h3 {
+          cursor: pointer;
+        }
 
         & > .nodes {
           max-height: 300px;
@@ -150,6 +176,20 @@ body {
               padding-left: 5px;
             }
           }
+        }
+      }
+    }
+
+    .canvas-container {
+      width: 100%;
+      height: 100%;
+
+      & > #canvas {
+        border: 2px solid #000;
+        cursor: grab;
+
+        &:active {
+          cursor: grabbing;
         }
       }
     }
