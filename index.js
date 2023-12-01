@@ -115,13 +115,16 @@ path_from.placeholder = "from (id)";
 
 path_to.type = "number";
 path_to.placeholder = "to (id)";
+
+const path_wrapper = UI.createElement("div", { class: ["path-wrapper"] });
+
 const draw_path_button = UI.createElement("button", {
   id: "draw-path",
-  text: "draw shortest path",
+  text: "Draw Shortest",
 });
 const draw_attractive_button = UI.createElement("button", {
   id: "draw-attractive",
-  text: "draw attractive path",
+  text: "Draw Attractive",
 });
 
 draw_path_button.onclick = () => {
@@ -188,13 +191,8 @@ UI.append(config_content, [cfg_title, $nodes, open_modal_button, $path]);
 UI.append($nodes, [$nodes_legend, nodes_list, node_input_container]);
 UI.append(node_input_container, [node_input, add_node_button]);
 UI.append(node_input, [node_label_input]);
-UI.append($path, [
-  $path_legend,
-  path_log,
-  path_input,
-  draw_path_button,
-  draw_attractive_button,
-]);
+UI.append(path_wrapper, [draw_path_button, draw_attractive_button]);
+UI.append($path, [$path_legend, path_log, path_input, path_wrapper]);
 UI.append(path_input, [path_from, path_to]);
 UI.append($canvas, [canvas]);
 UI.append(modal, [modal_content]);
@@ -340,15 +338,15 @@ add_node_button.onclick = () => {
 };
 
 function drawPath(callback, args) {
-  if (path_from.value === "" || path_to.value === "") return;
+  if (path_from.value === "" || path_to.value === "") {
+    graph.clearPath();
+    return;
+  }
   const from = parseInt(path_from.value);
   const to = parseInt(path_to.value);
 
   if (from < 0 || from >= graph.nodes.length) return;
   if (to < 0 || to >= graph.nodes.length) return;
-
-  path_from.value = "";
-  path_to.value = "";
 
   const { path, distance } = callback(...args, from, to);
 

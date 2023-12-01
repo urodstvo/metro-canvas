@@ -4,12 +4,19 @@ export class Node {
   radius = 12;
   label_direction = "up";
   active = false;
-  path = Infinity;
+  color = "0, 0, 0";
 
-  constructor(node, color = "0, 0, 0") {
+  constructor(node) {
     Object.assign(this, node);
     this.active = false;
-    this.color = color;
+    this.path = -100;
+    this.colorize();
+  }
+
+  colorize() {
+    if (this.score) {
+      this.color = `0, ${Math.round(226 - 192 / this.score)}, 0`;
+    }
   }
 
   draw(ctx) {
@@ -275,9 +282,34 @@ export class Canvas {
     return edges;
   }
 
+  #findFreeXY() {
+    let freeX, freeY;
+
+    while (!freeX || !freeY) {
+      const randomX = Math.floor(Math.random() * 300);
+      const randomY = Math.floor(Math.random() * 300);
+
+      const isOccupied = this.nodes.some((node) =>
+        node.isHovered({ x: randomX, y: randomY })
+      );
+      if (!isOccupied) {
+        freeX = randomX;
+        freeY = randomY;
+      }
+    }
+    return { freeX, freeY };
+  }
+
   addNode(node) {
+    const { freeX, freeY } = this.#findFreeXY();
+    node.x = freeX;
+    node.y = freeY;
+
     this.nodes.push(node);
     this.nodes = calculateAttractivenessScore(this.nodes);
+    this.nodes.forEach((node) => {
+      node.colorize();
+    });
 
     if (this.edges) this.edges.forEach((edge) => edge.push(0));
     this.edges.push(new Array(this.nodes.length).fill(0));
@@ -290,19 +322,22 @@ export class Canvas {
     });
 
     this.nodes = calculateAttractivenessScore(this.nodes);
+    this.nodes.forEach((node) => {
+      node.colorize();
+    });
 
     this.edges = this.edges.filter((_, ind) => ind !== id);
     this.edges = this.edges.map((edge) => edge.filter((_, ind) => ind !== id));
   }
 
-  #clearPath() {
-    this.nodes.forEach((node) => (node.color = "0, 0, 0"));
-    this.nodes.forEach((node) => (node.path = Infinity));
+  clearPath() {
+    this.nodes.forEach((node) => node.colorize());
+    this.nodes.forEach((node) => (node.path = -100));
     this.edges.forEach((edge) => (edge.color = "0, 0, 0"));
   }
 
   visualize(path) {
-    this.#clearPath();
+    this.clearPath();
     let ind = 0;
 
     const interval = setInterval(() => {
@@ -316,7 +351,6 @@ export class Canvas {
 
   draw() {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    this.ctx.fillStyle = "#000";
 
     const edges = this.#getPerformedEdges();
     edges.forEach((edge) => edge.draw(this.ctx));
