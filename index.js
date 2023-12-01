@@ -123,9 +123,21 @@ const draw_attractive_button = UI.createElement("button", {
   id: "draw-attractive",
   text: "draw attractive path",
 });
+
+draw_path_button.onclick = () => {
+  drawPath(Dijkstra, [graph.edges]);
+};
+
+draw_attractive_button.onclick = () => {
+  drawPath(findMaxAttractivePath, [
+    graph.edges,
+    graph.nodes.map((node) => node.score),
+  ]);
+};
+
 const save_button = UI.createElement("button", {
   id: "save",
-  text: "Save Config",
+  text: "Save Config Loccaly",
 });
 
 save_button.onclick = () => {
@@ -321,12 +333,13 @@ add_node_button.onclick = () => {
     : graph.nodes.length.toString();
 
   const node = new Node({ id: graph.nodes.length, x: 50, y: 50, label });
-
   graph.addNode(node);
   updateUI(graph.nodes);
+
+  node_label_input.value = "";
 };
 
-draw_path_button.onclick = () => {
+function drawPath(callback, args) {
   if (path_from.value === "" || path_to.value === "") return;
   const from = parseInt(path_from.value);
   const to = parseInt(path_to.value);
@@ -334,39 +347,18 @@ draw_path_button.onclick = () => {
   if (from < 0 || from >= graph.nodes.length) return;
   if (to < 0 || to >= graph.nodes.length) return;
 
-  const { path, distance } = Dijkstra(graph.edges, from, to);
+  path_from.value = "";
+  path_to.value = "";
+
+  const { path, distance } = callback(...args, from, to);
+
   if (path.length > 0 && distance !== Infinity) {
     path_log.textContent = `Path: ${path.join(" → ")} Distance: ${distance}`;
     graph.visualize(path);
   } else {
     path_log.textContent = `No Path`;
   }
-};
-
-draw_attractive_button.onclick = () => {
-  if (path_from.value === "" || path_to.value === "") return;
-  const from = parseInt(path_from.value);
-  const to = parseInt(path_to.value);
-
-  if (from < 0 || from >= graph.nodes.length) return;
-  if (to < 0 || to >= graph.nodes.length) return;
-
-  const { path, maxAttractiveness } = findMaxAttractivePath(
-    from,
-    to,
-    graph.nodes.map((node) => node.score),
-    graph.edges
-  );
-
-  if (path.length > 0 && maxAttractiveness > 0) {
-    path_log.textContent = `Path: ${path.join(
-      " → "
-    )} Distance: ${maxAttractiveness}`;
-    graph.visualize(path);
-  } else {
-    path_log.textContent = `No Path`;
-  }
-};
+}
 
 if (localStorage.getItem("cfg_pos")) {
   const { left, top } = JSON.parse(localStorage.getItem("cfg_pos"));

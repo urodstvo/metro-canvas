@@ -110,10 +110,10 @@ export function calculateAttractivenessScore(graph) {
 }
 
 export function findMaxAttractivePath(
-  startNode,
-  endNode,
+  graph,
   attractivenessScores,
-  graph
+  startNode,
+  endNode
 ) {
   const visited = new Set();
   let maxAttractiveness = 0;
@@ -155,7 +155,7 @@ export function findMaxAttractivePath(
 
   return {
     path: maxAttractivenessPath,
-    maxAttractiveness,
+    distance: maxAttractiveness,
     maxAttractivenessNode: attractivenessScores[endNode],
   };
 }
