@@ -137,7 +137,11 @@ draw_attractive_button.onclick = () => {
 
 const save_button = UI.createElement("button", {
   id: "save",
+<<<<<<< HEAD
   text: "Save Config Locally",
+=======
+  text: "Save Config Loccaly",
+>>>>>>> bb309340d322cfefc5e85f1888415c82ecd38aa1
 });
 
 save_button.onclick = () => {
