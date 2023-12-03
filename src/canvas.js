@@ -155,7 +155,7 @@ class Edge {
     ctx.restore();
   }
 
-  draw(ctx) {
+  draw(ctx, isLabelDrawing) {
     ctx.save();
 
     ctx.strokeStyle = `rgb(${this.color})`;
@@ -169,7 +169,7 @@ class Edge {
 
     ctx.rotate(this.angle);
 
-    this.#drawLabel(ctx);
+    if (isLabelDrawing) this.#drawLabel(ctx);
     if (this.isOneWay) this.#drawArrow(ctx);
 
     ctx.restore();
@@ -177,6 +177,7 @@ class Edge {
 }
 
 export class Canvas {
+  isLabelDrawing = true;
   nodes = [];
   edges = [];
   constructor(canvas = document.getElementById("canvas"), cfg) {
@@ -241,7 +242,50 @@ export class Canvas {
       });
     });
 
-    this.canvas.addEventListener("mouseup", (e) => {
+    this.canvas.addEventListener("mouseup", () => {
+      this.nodes.forEach((node) => (node.active = false));
+      this.nodes = calculateAttractivenessScore(this.nodes);
+    });
+
+    this.canvas.addEventListener("touchmove", (e) => {
+      const canvasRect = this.canvas.getBoundingClientRect();
+      const touch = {
+        x: e.pageX - canvasRect.left,
+        y: e.pageY - canvasRect.top,
+      };
+
+      let isHoveredArray = this.nodes.map((node) => node.isHovered(touch));
+      !isHoveredArray.every((isHover) => isHover === false)
+        ? canvas.classList.add("hover")
+        : canvas.classList.remove("hover");
+
+      this.nodes.forEach((node) => {
+        if (node.active) {
+          node.x = touch.x - node.offset.x;
+          node.y = touch.y - node.offset.y;
+        }
+      });
+    });
+
+    this.canvas.addEventListener("touchstart", (e) => {
+      const canvasRect = this.canvas.getBoundingClientRect();
+      const touch = {
+        x: e.pageX - canvasRect.left,
+        y: e.pageY - canvasRect.top,
+      };
+
+      this.nodes.forEach((node) => {
+        if (node.isHovered(touch)) {
+          node.active = true;
+          node.offset = {
+            x: touch.x - node.x,
+            y: touch.y - node.y,
+          };
+        } else node.active = false;
+      });
+    });
+
+    this.canvas.addEventListener("touchend", () => {
       this.nodes.forEach((node) => (node.active = false));
       this.nodes = calculateAttractivenessScore(this.nodes);
     });
@@ -353,7 +397,7 @@ export class Canvas {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
     const edges = this.#getPerformedEdges();
-    edges.forEach((edge) => edge.draw(this.ctx));
+    edges.forEach((edge) => edge.draw(this.ctx, this.isLabelDrawing));
 
     this.nodes.forEach((node) => node.draw(this.ctx));
   }

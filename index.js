@@ -2,6 +2,7 @@ import "./style.css";
 import { UI } from "./src/ui";
 import { Canvas, Node } from "./src/canvas";
 import { Dijkstra, findMaxAttractivePath } from "./src/algorithms";
+import { defaultConfig } from "./src/constants";
 
 let doubleDirs;
 if (localStorage.getItem("doubleDirs"))
@@ -184,10 +185,23 @@ open_modal_button.onclick = () => {
   modal.showModal();
 };
 
+const switch_labels = UI.createElement("input", { id: "switch-labels" });
+switch_labels.type = "checkbox";
+switch_labels.checked = true;
+switch_labels.onchange = () => {
+  graph.isLabelDrawing = !graph.isLabelDrawing;
+};
+
 UI.append(root, [wrapper, modal]);
 UI.append(wrapper, [$config, $canvas]);
 UI.append($config, [config_content, save_button]);
-UI.append(config_content, [cfg_title, $nodes, open_modal_button, $path]);
+UI.append(config_content, [
+  cfg_title,
+  $nodes,
+  open_modal_button,
+  $path,
+  switch_labels,
+]);
 UI.append($nodes, [$nodes_legend, nodes_list, node_input_container]);
 UI.append(node_input_container, [node_input, add_node_button]);
 UI.append(node_input, [node_label_input]);
@@ -366,6 +380,7 @@ if (localStorage.getItem("cfg_pos")) {
 
 let cfg;
 if (localStorage.getItem("cfg")) cfg = JSON.parse(localStorage.getItem("cfg"));
+else cfg = defaultConfig;
 
 const graph = new Canvas(canvas, cfg);
 updateUI(graph.nodes);
